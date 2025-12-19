@@ -51,7 +51,8 @@ export default function VehicleModule() {
     });
 
     if (error) {
-      alert('Erro ao cadastrar veículo.');
+    alert(`Erro no banco de dados: ${error.message}`);
+      console.error(error);
     } else {
       setIsAddModalOpen(false);
       setNewVehicle({ brand: '', model: '', plate: '', year: '', color: '' });
