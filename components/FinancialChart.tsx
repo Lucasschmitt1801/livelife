@@ -1,4 +1,3 @@
-
 'use client'
 
 import { 
@@ -21,26 +20,23 @@ interface FinancialChartProps {
 
 export default function FinancialChart({ transactions }: FinancialChartProps) {
   // 1. Processar os dados para o gráfico
-  // Vamos somar todas as receitas e todas as despesas da lista atual
   const summary = transactions.reduce(
     (acc, t) => {
       if (t.amount > 0) {
         acc.income += t.amount
       } else {
-        acc.expense += Math.abs(t.amount) // Pega o valor absoluto para o gráfico ficar bonito
+        acc.expense += Math.abs(t.amount)
       }
       return acc
     },
     { income: 0, expense: 0 }
   )
 
-  // Formatar para o Recharts
   const data = [
     { name: 'Entradas', value: summary.income, color: '#22c55e' }, // Verde
     { name: 'Saídas', value: summary.expense, color: '#ef4444' }, // Vermelho
   ]
 
-  // Se não tiver dados, não renderiza nada feio
   if (summary.income === 0 && summary.expense === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-500 text-sm border border-gray-700 rounded-lg bg-gray-800">
@@ -68,7 +64,8 @@ export default function FinancialChart({ transactions }: FinancialChartProps) {
             <Tooltip 
               cursor={{ fill: 'transparent' }}
               contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
-              formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Valor']}
+              // CORREÇÃO: Usamos 'any' para evitar erro de build na Vercel
+              formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Valor']}
             />
             <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={40}>
               {data.map((entry, index) => (
@@ -79,7 +76,6 @@ export default function FinancialChart({ transactions }: FinancialChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Legenda manual simples */}
       <div className="flex justify-center gap-6 mt-4 text-sm font-medium">
         <div className="flex items-center gap-2 text-green-400">
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
