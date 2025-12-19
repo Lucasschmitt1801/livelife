@@ -77,7 +77,8 @@ export default function ExpenseBreakdownChart({ transactions }: ExpenseBreakdown
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+              // CORREÇÃO: Usamos 'any' aqui para satisfazer o TypeScript da Vercel
+              formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
               contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
               itemStyle={{ color: '#fff' }}
             />
