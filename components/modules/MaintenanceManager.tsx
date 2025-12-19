@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient'; 
-import { Plus, Trash2, Edit2, Wrench, Save, X, Calendar, Activity, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Edit2, Wrench, Save, X, Calendar, Activity } from 'lucide-react';
 
 interface MaintenanceItem {
   id?: string;
@@ -253,4 +253,22 @@ export default function MaintenanceManager({ vehicleId }: Props) {
                 <span className="text-sm font-medium text-gray-300">Custo Mão de Obra:</span>
                 <div className="relative w-32">
                   <span className="absolute left-3 top-2 text-gray-500 text-xs">R$</span>
-                  <input type="number" className="w-full bg-gray-900 border border-gray-600 rounded p-2 pl-8 text-right text-sm focus:border-blue-500 outline-none text-white" value={formData.laborCost} onChange={e => setFormData
+                  <input type="number" className="w-full bg-gray-900 border border-gray-600 rounded p-2 pl-8 text-right text-sm focus:border-blue-500 outline-none text-white" value={formData.laborCost} onChange={e => setFormData({...formData, laborCost: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+              <div className="flex justify-between text-xl font-bold items-center px-2">
+                <span className="text-white">Total Geral:</span>
+                <span className="text-blue-400">R$ {grandTotal.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-700 bg-gray-800/50 flex justify-end gap-3 rounded-b-xl sticky bottom-0">
+              <button onClick={() => setIsModalOpen(false)} className="px-5 py-2 text-gray-400 text-sm hover:text-white hover:bg-gray-700 rounded-lg transition">Cancelar</button>
+              <button onClick={handleSave} disabled={processing} className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-900/20 disabled:opacity-50">{processing ? 'Salvando...' : 'Salvar Manutenção'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
