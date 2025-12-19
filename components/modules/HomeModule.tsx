@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { Wallet, GraduationCap, Car, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
+import { Wallet, GraduationCap, Car, Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface HomeModuleProps { session: any }
 
@@ -10,7 +10,9 @@ export default function HomeModule({ session }: HomeModuleProps) {
   // Estados de Resumo
   const [balance, setBalance] = useState(0)
   const [academicProgress, setAcademicProgress] = useState(0)
-  const [vehicleStatus, setVehicleStatus] = useState({ name: '', km: 0 })
+  
+  // ATUALIZADO: Estado do veículo adaptado para a nova tabela
+  const [mainVehicle, setMainVehicle] = useState<{ brand: string, model: string, plate: string } | null>(null)
   
   // Estados do Calendário
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -20,11 +22,13 @@ export default function HomeModule({ session }: HomeModuleProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
-    fetchFinancialSummary()
-    fetchAcademicSummary()
-    fetchVehicleSummary()
-    fetchEvents()
-  }, [currentDate]) // Recarrega eventos se mudar o mês
+    if (session?.user) {
+        fetchFinancialSummary()
+        fetchAcademicSummary()
+        fetchVehicleSummary()
+        fetchEvents()
+    }
+  }, [currentDate, session]) 
 
   // --- BUSCAS DE DADOS ---
 
@@ -45,13 +49,21 @@ export default function HomeModule({ session }: HomeModuleProps) {
     }
   }
 
+  // ATUALIZADO: Busca na tabela 'vehicles' correta
   async function fetchVehicleSummary() {
-    const { data } = await supabase.from('vehicles').select('*').limit(1).single()
-    if (data) setVehicleStatus({ name: data.name, km: data.current_km })
+    const { data } = await supabase
+        .from('vehicles')
+        .select('brand, model, plate')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+    
+    if (data) setMainVehicle(data)
   }
 
   async function fetchEvents() {
-    // 1. Eventos Manuais
+    // 1. Eventos Manuais (Calendário)
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString()
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString()
 
@@ -61,19 +73,19 @@ export default function HomeModule({ session }: HomeModuleProps) {
       .gte('start_time', startOfMonth)
       .lte('start_time', endOfMonth)
 
-    // 2. Eventos de Veículo (Manutenções/Abastecimentos)
+    // 2. ATUALIZADO: Busca na tabela 'vehicle_maintenance' que criamos hoje
     const { data: vehicleLogs } = await supabase
-      .from('vehicle_events')
-      .select('*')
+      .from('vehicle_maintenance') // Mudamos o nome da tabela aqui
+      .select('id, date, description, total_cost')
       .gte('date', startOfMonth)
       .lte('date', endOfMonth)
 
     // Unificar tudo
     const formattedVehicleEvents = (vehicleLogs || []).map((log: any) => ({
       id: log.id,
-      title: `${log.description} (R$ ${log.total_cost})`,
-      start_time: log.date, // Data do log vira data do evento
-      type: 'vehicle', // Cor diferente
+      title: `${log.description ? log.description.substring(0, 20) + '...' : 'Manutenção'} (R$ ${log.total_cost})`,
+      start_time: log.date, 
+      type: 'vehicle', 
       is_vehicle: true
     }))
 
@@ -84,7 +96,6 @@ export default function HomeModule({ session }: HomeModuleProps) {
     e.preventDefault()
     if (!newEventTitle || !selectedDate) return
 
-    // Ajustar data para gravar corretamente (evitar timezone issues simples)
     const dateToSave = new Date(selectedDate)
     dateToSave.setHours(12, 0, 0, 0) 
 
@@ -118,13 +129,32 @@ export default function HomeModule({ session }: HomeModuleProps) {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1))
   }
 
-  // Filtrar eventos do dia
   const getEventsForDay = (day: number) => {
     return events.filter(e => {
         const eventDate = new Date(e.start_time)
-        return eventDate.getDate() === day && eventDate.getMonth() === currentDate.getMonth()
-    })
+        // Ajuste para garantir que pegue o dia correto independente do timezone UTC
+        // (Comparando dia, mês e ano em vez de timestamp exato)
+        return eventDate.getDate() === day + 1 || eventDate.getDate() === day // Pequena tolerância para datas salvas como UTC 00:00
+    }).filter(e => {
+         const d = new Date(e.start_time);
+         return d.getMonth() === currentDate.getMonth() && d.getDate() === day;
+    });
+    // Simplificando o filtro para evitar erros de fuso horário simples:
+    // O ideal é usar bibliotecas como date-fns, mas mantendo simples:
   }
+  
+  // Função auxiliar de filtro de data corrigida
+  const filterEvents = (day: number) => {
+      return events.filter(e => {
+          // Converte a string do banco para data
+          const eventDate = new Date(e.start_time);
+          // Adiciona o timezone offset para corrigir a visualização se foi salvo como UTC
+          const localDate = new Date(eventDate.getTime() + eventDate.getTimezoneOffset() * 60000);
+          
+          return localDate.getDate() === day && localDate.getMonth() === currentDate.getMonth();
+      })
+  }
+
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -150,32 +180,35 @@ export default function HomeModule({ session }: HomeModuleProps) {
                 <p className="text-3xl font-bold">{academicProgress.toFixed(0)}%</p>
                 <span className="text-xs text-emerald-200 mb-1">Concluído</span>
             </div>
-            {/* Mini Barra */}
             <div className="w-full bg-black/20 h-1.5 rounded-full mt-2">
                 <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${academicProgress}%` }}></div>
             </div>
         </div>
 
-        {/* Card Veículo */}
+        {/* Card Veículo (ATUALIZADO VISUALMENTE) */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-lg shadow-lg border border-gray-700 text-white">
             <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white/10 rounded"><Car size={20} /></div>
                 <span className="font-medium text-gray-300">Veículo Principal</span>
             </div>
-             {vehicleStatus.name ? (
+             {mainVehicle ? (
                 <>
-                    <p className="text-xl font-bold truncate">{vehicleStatus.name}</p>
-                    <p className="text-sm text-gray-400 font-mono mt-1">{vehicleStatus.km} km rodados</p>
+                    <p className="text-xl font-bold truncate">{mainVehicle.brand} {mainVehicle.model}</p>
+                    <p className="text-sm text-blue-300 font-mono mt-1 px-2 py-0.5 bg-blue-900/30 rounded inline-block border border-blue-800/50">
+                        {mainVehicle.plate}
+                    </p>
                 </>
              ) : (
-                <p className="text-sm text-gray-500 mt-2">Nenhum veículo cadastrado</p>
+                <div className="flex flex-col mt-2">
+                    <p className="text-sm text-gray-500">Nenhum veículo cadastrado</p>
+                    <span className="text-xs text-gray-600">Cadastre na aba Veículos</span>
+                </div>
              )}
         </div>
       </div>
 
       {/* CALENDÁRIO GRANDE */}
       <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-xl">
-        {/* Header do Calendário */}
         <div className="p-4 flex items-center justify-between border-b border-gray-700 bg-gray-900">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <CalendarIcon className="text-blue-500" /> 
@@ -187,7 +220,6 @@ export default function HomeModule({ session }: HomeModuleProps) {
             </div>
         </div>
 
-        {/* Grid dos Dias */}
         <div className="p-4">
             <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-gray-500 uppercase">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => <div key={d}>{d}</div>)}
@@ -196,7 +228,7 @@ export default function HomeModule({ session }: HomeModuleProps) {
                 {emptyDays.map(d => <div key={`empty-${d}`} className="h-24 md:h-32 bg-transparent"></div>)}
                 
                 {days.map(day => {
-                    const dayEvents = getEventsForDay(day)
+                    const dayEvents = filterEvents(day)
                     const isToday = new Date().getDate() === day && new Date().getMonth() === currentDate.getMonth()
 
                     return (
@@ -207,12 +239,10 @@ export default function HomeModule({ session }: HomeModuleProps) {
                         >
                             <span className={`text-sm font-bold ${isToday ? 'text-blue-400' : 'text-gray-400'}`}>{day}</span>
                             
-                            {/* Botão + (Hover) */}
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
                                 <Plus size={14} className="text-gray-400" />
                             </div>
 
-                            {/* Lista de Eventos no Dia */}
                             <div className="mt-1 space-y-1 overflow-y-auto max-h-[70%] custom-scrollbar">
                                 {dayEvents.map(ev => (
                                     <div 
@@ -250,11 +280,11 @@ export default function HomeModule({ session }: HomeModuleProps) {
                         type="text" autoFocus required
                         placeholder="Ex: Prova Grau B, Pagar Luz"
                         value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white mt-1 mb-4" 
+                        className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white mt-1 mb-4 focus:border-blue-500 outline-none" 
                     />
                     <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 px-4">Cancelar</button>
-                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded">Salvar</button>
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 px-4 hover:text-white">Cancelar</button>
+                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Salvar</button>
                     </div>
                 </form>
             </div>
