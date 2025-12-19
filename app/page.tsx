@@ -125,7 +125,7 @@ export default function Home() {
           
           {/* MÓDULOS */}
           {currentModule === 'home' && <HomeModule session={session} />}
-          {currentModule === 'financeiro' && <FinancialModule session={session} />}
+          {currentModule === 'financeiro' && <FinancialModule />}
           {currentModule === 'academico' && <AcademicModule session={session} />}
           {currentModule === 'carro' && <VehicleModule />}
 
