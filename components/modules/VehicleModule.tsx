@@ -3,18 +3,17 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Plus, Car, Trash2, ArrowLeft, Fuel, Calendar } from 'lucide-react';
-// Importa o gerenciador de manutenção que criamos
-import MaintenanceManager from '../MaintenanceManager';
+// CORREÇÃO AQUI: Usando ./ para buscar na mesma pasta
+import MaintenanceManager from './MaintenanceManager';
 
 // --- Tipagem do Veículo ---
 interface Vehicle {
   id: string;
-  brand: string;   // Ex: Audi
-  model: string;   // Ex: RS4
-  plate: string;   // Ex: IVI-1234
-  year: string;    // Ex: 2021
-  color: string;   // Ex: Cinza Nardo
-  // Adicione outros campos que você use (renavam, etc.)
+  brand: string;
+  model: string;
+  plate: string;
+  year: string;
+  color: string;
 }
 
 export default function VehicleModule() {
@@ -33,7 +32,7 @@ export default function VehicleModule() {
   const fetchVehicles = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('vehicles') // Certifique-se que o nome da tabela no banco é 'vehicles'
+      .from('vehicles')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -80,18 +79,17 @@ export default function VehicleModule() {
     if (error) {
       alert('Erro ao excluir.');
     } else {
-      if (selectedVehicle?.id === id) setSelectedVehicle(null); // Volta pra lista se apagou o selecionado
+      if (selectedVehicle?.id === id) setSelectedVehicle(null);
       fetchVehicles();
     }
   };
 
   // --- RENDERIZAÇÃO ---
 
-  // VISTA 1: Lista de Veículos (Se nenhum estiver selecionado)
+  // VISTA 1: Lista de Veículos
   if (!selectedVehicle) {
     return (
       <div className="space-y-6">
-        {/* Cabeçalho do Módulo */}
         <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Meus Veículos</h2>
@@ -105,7 +103,6 @@ export default function VehicleModule() {
           </button>
         </div>
 
-        {/* Grid de Cards */}
         {loading ? (
           <p className="text-gray-500 text-center py-10">Carregando veículos...</p>
         ) : vehicles.length === 0 ? (
@@ -146,7 +143,6 @@ export default function VehicleModule() {
           </div>
         )}
 
-        {/* Modal de Adicionar (Simplificado) */}
         {isAddModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
@@ -171,10 +167,9 @@ export default function VehicleModule() {
     );
   }
 
-  // VISTA 2: Detalhes do Veículo Selecionado + Histórico de Manutenção
+  // VISTA 2: Detalhes do Veículo Selecionado + Histórico
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      {/* Botão Voltar */}
       <button 
         onClick={() => setSelectedVehicle(null)} 
         className="flex items-center gap-2 text-gray-500 hover:text-gray-800 mb-6 transition"
@@ -182,7 +177,6 @@ export default function VehicleModule() {
         <ArrowLeft size={20} /> Voltar para lista
       </button>
 
-      {/* Header do Veículo */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
         <div className="flex justify-between items-start">
           <div className="flex gap-4">
@@ -208,10 +202,6 @@ export default function VehicleModule() {
         </div>
       </div>
 
-      {/* =============================================
-          AQUI ENTRA O NOVO COMPONENTE DE MANUTENÇÃO 
-          =============================================
-      */}
       <div className="mt-8">
         <MaintenanceManager vehicleId={selectedVehicle.id} />
       </div>
