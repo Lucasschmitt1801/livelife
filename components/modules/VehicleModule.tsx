@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+// REMOVIDO: Importação quebrada do auth-helpers
+// ADICIONADO: Importação do lib local
+import { supabase } from '../../lib/supabaseClient';
 import { Plus, Car, Trash2, ArrowLeft, Fuel, Calendar } from 'lucide-react';
-// CORREÇÃO AQUI: Usando ./ para buscar na mesma pasta
 import MaintenanceManager from './MaintenanceManager';
 
-// --- Tipagem do Veículo ---
 interface Vehicle {
   id: string;
   brand: string;
@@ -17,18 +17,14 @@ interface Vehicle {
 }
 
 export default function VehicleModule() {
-  const supabase = createClientComponentClient();
-
-  // Estados principais
+  // REMOVIDO: const supabase = createClientComponentClient();
+  
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  
-  // Estado para Modal de Novo Veículo
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newVehicle, setNewVehicle] = useState({ brand: '', model: '', plate: '', year: '', color: '' });
 
-  // 1. Buscar Veículos
   const fetchVehicles = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -45,7 +41,6 @@ export default function VehicleModule() {
     fetchVehicles();
   }, []);
 
-  // 2. Adicionar Veículo
   const handleAddVehicle = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return alert('Faça login novamente.');
@@ -71,7 +66,6 @@ export default function VehicleModule() {
     }
   };
 
-  // 3. Excluir Veículo
   const handleDeleteVehicle = async (id: string) => {
     if (!confirm('Tem certeza? Isso apagará o veículo e TODO o histórico de manutenções dele.')) return;
 
@@ -84,9 +78,6 @@ export default function VehicleModule() {
     }
   };
 
-  // --- RENDERIZAÇÃO ---
-
-  // VISTA 1: Lista de Veículos
   if (!selectedVehicle) {
     return (
       <div className="space-y-6">
@@ -167,7 +158,6 @@ export default function VehicleModule() {
     );
   }
 
-  // VISTA 2: Detalhes do Veículo Selecionado + Histórico
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
       <button 

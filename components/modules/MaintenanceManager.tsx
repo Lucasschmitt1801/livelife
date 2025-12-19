@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+// REMOVIDO: import { createClientComponentClient } ...
+// ADICIONADO: Importar do seu arquivo local
+import { supabase } from '../../lib/supabaseClient'; 
 import { Plus, Trash2, Edit2, Wrench, Save, X, Calendar, Activity } from 'lucide-react';
 
-// Tipagem
 interface MaintenanceItem {
   id?: string;
   item_name: string;
@@ -28,7 +29,8 @@ interface Props {
 }
 
 export default function MaintenanceManager({ vehicleId }: Props) {
-  const supabase = createClientComponentClient();
+  // REMOVIDO: const supabase = createClientComponentClient();
+  // Agora usamos a variável 'supabase' importada diretamente lá em cima.
 
   const [history, setHistory] = useState<MaintenanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
   });
   const [formItems, setFormItems] = useState<MaintenanceItem[]>([]);
 
-  // 1. Buscar Histórico
   const fetchHistory = async () => {
     if (!vehicleId) return;
     setLoading(true);
@@ -62,7 +63,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
 
   useEffect(() => { fetchHistory(); }, [vehicleId]);
 
-  // 2. Lógica do Formulário
   const handleOpenModal = (record?: MaintenanceRecord) => {
     if (record) {
       setEditingId(record.id);
@@ -92,13 +92,15 @@ export default function MaintenanceManager({ vehicleId }: Props) {
   const totalParts = formItems.reduce((acc, item) => acc + (Number(item.item_price) || 0), 0);
   const grandTotal = totalParts + (Number(formData.laborCost) || 0);
 
-  // 3. Salvar (Insert/Update com Transaction Simulada)
   const handleSave = async () => {
     setProcessing(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+        alert('Usuário não logado');
+        setProcessing(false);
+        return;
+    }
 
-    // Dados principais
     const payload = {
       user_id: user.id,
       vehicle_id: vehicleId,
@@ -112,7 +114,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
 
     let targetId = editingId;
 
-    // Salva ou Atualiza Manutenção
     if (editingId) {
       const { error } = await supabase.from('vehicle_maintenance').update(payload).eq('id', editingId);
       if (error) { alert('Erro ao salvar'); setProcessing(false); return; }
@@ -122,7 +123,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
       targetId = data.id;
     }
 
-    // Atualiza Itens (Apaga antigos e cria novos para evitar conflitos de ID)
     if (targetId) {
       await supabase.from('maintenance_items').delete().eq('maintenance_id', targetId);
       if (formItems.length > 0) {
@@ -140,7 +140,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
     fetchHistory();
   };
 
-  // 4. Deletar
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir manutenção e todas as peças?')) return;
     const { error } = await supabase.from('vehicle_maintenance').delete().eq('id', id);
@@ -170,7 +169,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
                 </div>
                 {rec.description && <p className="text-gray-700 font-medium text-sm mb-2">{rec.description}</p>}
                 
-                {/* Lista de Peças Resumida */}
                 <div className="bg-gray-50 p-2 rounded text-sm text-gray-600 space-y-1">
                   {rec.maintenance_items?.map((item, i) => (
                     <div key={i} className="flex justify-between border-b border-gray-200 last:border-0 pb-1 last:pb-0">
@@ -200,7 +198,6 @@ export default function MaintenanceManager({ vehicleId }: Props) {
         {!loading && history.length === 0 && <p className="text-gray-500 text-sm italic text-center">Nenhum registro encontrado.</p>}
       </div>
 
-      {/* MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
