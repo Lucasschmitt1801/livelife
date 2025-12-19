@@ -1,213 +1,186 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
-
-interface Account {
-  id: string
-  name: string
-}
-
-interface Category {
-  id: string
-  name: string
-  icon: string
-  is_expense: boolean
-}
+import { useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { X, DollarSign, Save } from 'lucide-react';
 
 interface NewTransactionModalProps {
-  userId: string
-  accounts: Account[]
-  onTransactionCreated: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  accounts: any[]; // Recebe a lista de contas para o select
 }
 
-export default function NewTransactionModal({ userId, accounts, onTransactionCreated }: NewTransactionModalProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  
-  // Dados do Banco
-  const [categories, setCategories] = useState<Category[]>([])
+export default function NewTransactionModal({ isOpen, onClose, onSave, accounts }: NewTransactionModalProps) {
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: '',
+    type: 'expense', // 'expense' ou 'income'
+    account_id: '',
+    date: new Date().toISOString().split('T')[0],
+    category: 'outros'
+  });
+  const [loading, setLoading] = useState(false);
 
-  // Formulário
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState('')
-  const [accountId, setAccountId] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [type, setType] = useState<'income' | 'expense'>('expense')
+  if (!isOpen) return null;
 
-  // Buscar categorias ao abrir o componente ou mudar o tipo
-  useEffect(() => {
-    if (isOpen) {
-      fetchCategories()
-    }
-  }, [isOpen, type]) // Recarrega se mudar entre Receita/Despesa
-
-  async function fetchCategories() {
-    const isExpense = type === 'expense'
+  const handleSave = async () => {
+    if (!formData.account_id) return alert('Selecione uma conta!');
     
-    const { data } = await supabase
-      .from('financial_categories')
-      .select('*')
-      .eq('is_expense', isExpense)
-      .order('name', { ascending: true })
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const amount = parseFloat(formData.amount);
     
-    if (data) setCategories(data)
-  }
+    // 1. Salvar Transação
+    const { error: transError } = await supabase.from('financial_transactions').insert({
+      user_id: user.id,
+      account_id: formData.account_id,
+      description: formData.description,
+      amount: amount,
+      type: formData.type,
+      date: formData.date,
+      category: formData.category
+    });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!accountId || !categoryId) {
-      alert('Preencha todos os campos!')
-      return
+    if (transError) {
+      alert('Erro ao salvar transação: ' + transError.message);
+      setLoading(false);
+      return;
     }
 
-    setLoading(true)
+    // 2. Atualizar Saldo da Conta
+    // Busca saldo atual
+    const { data: acc } = await supabase.from('financial_accounts').select('current_balance').eq('id', formData.account_id).single();
+    
+    if (acc) {
+      const newBalance = formData.type === 'income' 
+        ? acc.current_balance + amount 
+        : acc.current_balance - amount;
 
-    try {
-      // Chama a função atualizada no banco (agora com categoria)
-      const { error } = await supabase.rpc('create_transaction', {
-        p_user_id: userId,
-        p_account_id: accountId,
-        p_category_id: categoryId, // Novo campo
-        p_description: description,
-        p_amount: parseFloat(amount),
-        p_is_expense: type === 'expense'
-      })
-
-      if (error) throw error
-
-      // Reset
-      setDescription('')
-      setAmount('')
-      setCategoryId('')
-      setIsOpen(false)
-      onTransactionCreated()
-      
-    } catch (error) {
-      console.error('Erro ao criar transação:', error)
-      alert('Erro ao salvar. Verifique o console.')
-    } finally {
-      setLoading(false)
+      await supabase.from('financial_accounts').update({ current_balance: newBalance }).eq('id', formData.account_id);
     }
-  }
+
+    setLoading(false);
+    
+    // Limpar form
+    setFormData({
+      description: '',
+      amount: '',
+      type: 'expense',
+      account_id: '',
+      date: new Date().toISOString().split('T')[0],
+      category: 'outros'
+    });
+
+    onSave(); // Atualiza a lista no pai
+    onClose(); // Fecha modal
+  };
 
   return (
-    <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm transition font-medium flex items-center gap-2"
-      >
-        <span>+</span> Transação
-      </button>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-gray-900 border border-gray-700 p-6 rounded-xl w-full max-w-md text-gray-100 shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <DollarSign className="text-emerald-500" /> Nova Transação
+          </h3>
+          <button onClick={onClose}><X className="text-gray-500 hover:text-white" /></button>
+        </div>
 
-      {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-sm border border-gray-700">
-            <h2 className="text-xl font-bold text-white mb-4">Nova Movimentação</h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {/* Seletor Tipo */}
-              <div className="flex bg-gray-900 rounded p-1 mb-4">
-                <button
-                  type="button"
-                  onClick={() => { setType('expense'); setCategoryId(''); }}
-                  className={`flex-1 py-1 rounded text-sm font-medium transition ${type === 'expense' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                >
-                  Despesa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setType('income'); setCategoryId(''); }}
-                  className={`flex-1 py-1 rounded text-sm font-medium transition ${type === 'income' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
-                >
-                  Receita
-                </button>
-              </div>
+        <div className="space-y-4">
+          {/* Tipo (Receita / Despesa) */}
+          <div className="flex bg-gray-800 p-1 rounded-lg">
+            <button 
+              onClick={() => setFormData({...formData, type: 'expense'})}
+              className={`flex-1 py-2 rounded-md text-sm font-bold transition ${formData.type === 'expense' ? 'bg-red-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+            >
+              Despesa
+            </button>
+            <button 
+              onClick={() => setFormData({...formData, type: 'income'})}
+              className={`flex-1 py-2 rounded-md text-sm font-bold transition ${formData.type === 'income' ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+            >
+              Receita
+            </button>
+          </div>
 
-              {/* Descrição */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Descrição</label>
+          <div>
+            <label className="text-xs text-gray-400 ml-1">Descrição</label>
+            <input 
+              placeholder="Ex: Mercado, Salário..." 
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-gray-400 ml-1">Valor</label>
+              <div className="relative">
+                <span className="absolute left-3 top-3 text-gray-500">R$</span>
                 <input 
-                  type="text" 
-                  required
-                  placeholder="Ex: Gasolina, Mensalidade"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-purple-500 outline-none"
-                />
-              </div>
-
-              {/* Valor */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Valor (R$)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  required
+                  type="number"
                   placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-purple-500 outline-none"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 pl-10 text-white focus:border-blue-500 outline-none"
+                  value={formData.amount}
+                  onChange={e => setFormData({...formData, amount: e.target.value})}
                 />
               </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 ml-1">Data</label>
+              <input 
+                type="date"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+                value={formData.date}
+                onChange={e => setFormData({...formData, date: e.target.value})}
+              />
+            </div>
+          </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Conta */}
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Conta</label>
-                  <select
-                    required
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm focus:border-purple-500 outline-none"
-                  >
-                    <option value="">Selecione...</option>
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name}</option>
-                    ))}
-                  </select>
-                </div>
+          <div>
+            <label className="text-xs text-gray-400 ml-1">Conta</label>
+            <select 
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+              value={formData.account_id}
+              onChange={e => setFormData({...formData, account_id: e.target.value})}
+            >
+              <option value="">Selecione uma conta...</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>{acc.name} (R$ {acc.current_balance?.toFixed(2)})</option>
+              ))}
+            </select>
+          </div>
 
-                {/* Categoria */}
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Categoria</label>
-                  <select
-                    required
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm focus:border-purple-500 outline-none"
-                  >
-                    <option value="">Selecione...</option>
-                    {categories.length > 0 ? categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-                    )) : (
-                      <option disabled>Carregando...</option>
-                    )}
-                  </select>
-                </div>
-              </div>
+          <div>
+            <label className="text-xs text-gray-400 ml-1">Categoria</label>
+            <select 
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+              value={formData.category}
+              onChange={e => setFormData({...formData, category: e.target.value})}
+            >
+              <option value="alimentacao">Alimentação</option>
+              <option value="transporte">Transporte</option>
+              <option value="lazer">Lazer</option>
+              <option value="contas">Contas Fixas</option>
+              <option value="outros">Outros</option>
+            </select>
+          </div>
 
-              <div className="flex justify-end gap-2 mt-6">
-                <button 
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-white px-4 py-2 transition text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  disabled={loading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition text-sm font-medium disabled:opacity-50"
-                >
-                  {loading ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
+          <div className="pt-4 flex justify-end gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button>
+            <button 
+              onClick={handleSave} 
+              disabled={loading}
+              className={`px-6 py-2 text-white rounded-lg flex items-center gap-2 font-medium ${formData.type === 'expense' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+            >
+              <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Transação'}
+            </button>
           </div>
         </div>
-      )}
-    </>
-  )
+      </div>
+    </div>
+  );
 }
