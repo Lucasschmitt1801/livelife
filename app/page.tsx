@@ -1,65 +1,136 @@
-import Image from "next/image";
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { LayoutDashboard, GraduationCap, Car, Menu, X, Wallet, Home as HomeIcon } from 'lucide-react'
+
+// Importar os Módulos
+import HomeModule from '../components/modules/HomeModule' // NOVO
+import FinancialModule from '../components/modules/FinancialModule'
+import AcademicModule from '../components/modules/AcademicModule'
+import VehicleModule from '../components/modules/VehicleModule'
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+  const [session, setSession] = useState<any>(null)
+  
+  // Agora a tela padrão é 'home'
+  const [currentModule, setCurrentModule] = useState<'home' | 'financeiro' | 'academico' | 'carro'>('home')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // --- LÓGICA DE AUTENTICAÇÃO ---
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
+        <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
+          <h1 className="text-2xl font-bold text-white mb-6 text-center">LiveLife Login</h1>
+          <Auth 
+            supabaseClient={supabase} 
+            appearance={{ theme: ThemeSupa, variables: { default: { colors: { brand: '#2563eb', brandAccent: '#1d4ed8' } } } }} 
+            theme="dark" providers={[]} 
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </div>
+    )
+  }
+
+  // Definição dos itens do Menu Lateral (Adicionado Home)
+  const menuItems = [
+    { id: 'home', label: 'Início', icon: HomeIcon },
+    { id: 'financeiro', label: 'Financeiro', icon: Wallet },
+    { id: 'academico', label: 'Faculdade', icon: GraduationCap },
+    { id: 'carro', label: 'Veículo', icon: Car },
+  ]
+
+  return (
+    <div className="flex min-h-screen bg-gray-900 text-white font-sans">
+      
+      {/* SIDEBAR (Desktop) */}
+      <aside className="hidden md:flex flex-col w-64 bg-gray-800 border-r border-gray-700 fixed h-full">
+        <div className="p-6 border-b border-gray-700">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <LayoutDashboard className="text-blue-500" /> LiveLife
+          </h1>
+        </div>
+        
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setCurrentModule(item.id as any)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                currentModule === item.id 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
+                  : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <item.icon size={20} />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        
+        <div className="p-4 border-t border-gray-700 bg-gray-800">
+          <p className="text-xs text-gray-500 mb-2 truncate px-2">{session.user.email}</p>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="w-full text-center text-sm text-red-400 hover:text-red-300 border border-red-900/30 hover:bg-red-900/20 py-2 rounded transition"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Sair
+          </button>
+        </div>
+      </aside>
+
+      {/* MOBILE HEADER */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 z-50">
+        <h1 className="font-bold text-lg flex items-center gap-2">
+          <LayoutDashboard className="text-blue-500" size={20} /> LiveLife
+        </h1>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-300 p-2">
+          {isMobileMenuOpen ? <X /> : <Menu />}
+        </button>
+      </div>
+
+      {/* MOBILE MENU */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-16 bg-gray-900 z-40 p-4 space-y-2">
+           {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { setCurrentModule(item.id as any); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-lg border border-gray-700 ${
+                currentModule === item.id ? 'bg-blue-600 text-white' : 'text-gray-300'
+              }`}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+           <button onClick={() => supabase.auth.signOut()} className="w-full text-center text-red-400 py-4 mt-4 border border-red-900/30 rounded bg-red-900/10">Sair</button>
+        </div>
+      )}
+
+      {/* ÁREA DE CONTEÚDO */}
+      <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8 md:ml-64 overflow-y-auto min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          
+          {/* MÓDULOS */}
+          {currentModule === 'home' && <HomeModule session={session} />}
+          {currentModule === 'financeiro' && <FinancialModule session={session} />}
+          {currentModule === 'academico' && <AcademicModule session={session} />}
+          {currentModule === 'carro' && <VehicleModule session={session} />}
+
         </div>
       </main>
     </div>
-  );
+  )
 }
