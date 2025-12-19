@@ -127,7 +127,7 @@ export default function Home() {
           {currentModule === 'home' && <HomeModule session={session} />}
           {currentModule === 'financeiro' && <FinancialModule session={session} />}
           {currentModule === 'academico' && <AcademicModule session={session} />}
-          {currentModule === 'carro' && <VehicleModule session={session} />}
+          {currentModule === 'carro' && <VehicleModule />}
 
         </div>
       </main>
