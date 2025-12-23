@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧬 LiveLife - Personal ERP System
 
-## Getting Started
+> Uma plataforma unificada para gestão financeira, acadêmica e controle de frota veicular.
 
-First, run the development server:
+![Status](https://img.shields.io/badge/Status-Versão_1.0-green) ![Next.js](https://img.shields.io/badge/Next.js-16-black) ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🎯 O Problema
+A gestão da vida pessoal geralmente é fragmentada: usamos um app para o banco, uma planilha para o carro e o portal da faculdade para as notas. Essa desconexão dificulta a visão geral e a organização.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 A Solução
+O **LiveLife** centraliza esses três pilares em um dashboard único, permitindo que eventos de áreas diferentes (ex: manutenção do carro) conversem com a agenda pessoal automaticamente.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Módulos Principais
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+#### 1. 🚗 Gestão de Veículos (Frota)
+Não é apenas um registro de gastos. O sistema possui inteligência para reduzir custos:
+* **Calculadora de Eficiência:** Ao abastecer, o sistema calcula qual combustível vale a pena baseado no consumo real do veículo cadastrado.
+* **Nível Oficina:** Registro detalhado de manutenções separando custos de peças e mão de obra.
+* **Automação:** Registros de manutenção geram lembretes automáticos na Agenda.
 
-## Learn More
+#### 2. 💸 Gestão Financeira
+* Fluxo de caixa (Entradas e Saídas).
+* Categorização inteligente de despesas.
+* Visualização clara de saldo.
 
-To learn more about Next.js, take a look at the following resources:
+#### 3. 🎓 Gestão Acadêmica
+* Barra de progresso visual do curso de graduação.
+* Controle de cadeiras concluídas vs. pendentes.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Tecnologias Utilizadas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Projeto construído com a versão mais recente do Next.js para máxima performance:
 
-## Deploy on Vercel
+* **Frontend:** [Next.js 16](https://nextjs.org/) (App Router)
+* **Estilização:** Tailwind CSS (Dark Mode nativo)
+* **Banco de Dados & Auth:** [Supabase](https://supabase.com/)
+* **Ícones:** Lucide React
+* **Deploy:** Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🧠 Destaque: Lógica de Abastecimento
+O sistema utiliza uma função personalizada para decidir a viabilidade do combustível:
+```javascript
+// Exemplo simplificado da lógica implementada
+const calcularViabilidade = (precoGasolina, precoGNV, rendimentoCarro) => {
+  const relacaoPreco = precoGNV / precoGasolina;
+  // Lógica baseada na eficiência térmica específica do motor cadastrado
+  return relacaoPreco < 0.7 ? "Abasteça com GNV" : "Abasteça com Gasolina";
+}
