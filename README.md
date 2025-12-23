@@ -3,6 +3,7 @@
 > Uma plataforma unificada para gestão financeira, acadêmica e controle de frota veicular.
 
 ![Status](https://img.shields.io/badge/Status-Versão_1.0-green) ![Next.js](https://img.shields.io/badge/Next.js-16-black) ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
+[![Deploy](https://img.shields.io/badge/Ver_Projeto_Online-000?style=for-the-badge&logo=vercel&logoColor=white)](https://livelife-1ajbd3gbs-lucas-schmitts-projects.vercel.app/)
 
 ## 🎯 O Problema
 A gestão da vida pessoal geralmente é fragmentada: usamos um app para o banco, uma planilha para o carro e o portal da faculdade para as notas. Essa desconexão dificulta a visão geral e a organização.
